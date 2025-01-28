@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -121,6 +122,23 @@ func (s *httpServer) Log(level logger.Level, format string, args ...interface{})
 
 func (s *httpServer) close() {
 	s.inner.Close()
+}
+
+func (s *httpServer) proxyPathsList(ctx *gin.Context) {
+	resp, err := http.Get("http://localhost:9997/v3/paths/list")
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.Data(resp.StatusCode, "application/json", body)
 }
 
 func (s *httpServer) checkAuthOutsideSession(ctx *gin.Context, pathName string, publish bool) bool {
@@ -305,15 +323,29 @@ func (s *httpServer) onPage(ctx *gin.Context, pathName string, publish bool) {
 		return
 	}
 
-	ctx.Header("Cache-Control", "max-age=3600")
+	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Content-Type", "text/html")
-	ctx.Writer.WriteHeader(http.StatusOK)
 
+	var filename string
 	if publish {
-		ctx.Writer.Write(publishIndex)
+		filename = "internal/servers/webrtc/publish_index.html"
 	} else {
-		ctx.Writer.Write(readIndex)
+		filename = "internal/servers/webrtc/read_index.html"
 	}
+
+	// Try reading from filesystem first (for development)
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		// Fall back to embedded content
+		if publish {
+			content = publishIndex
+		} else {
+			content = readIndex
+		}
+	}
+
+	ctx.Writer.WriteHeader(http.StatusOK)
+	ctx.Writer.Write(content)
 }
 
 func (s *httpServer) middlewareOrigin(ctx *gin.Context) {
@@ -331,19 +363,48 @@ func (s *httpServer) middlewareOrigin(ctx *gin.Context) {
 }
 
 func (s *httpServer) onRequest(ctx *gin.Context) {
+	if ctx.Request.URL.Path == "/streams.json" {
+		content, err := os.ReadFile("internal/servers/webrtc/streams.json")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		ctx.Data(http.StatusOK, "application/json", content)
+		return
+	}
+	if ctx.Request.URL.Path == "/v3/paths/list" {
+		s.proxyPathsList(ctx)
+		return
+	}
 	if strings.HasSuffix(ctx.Request.URL.Path, "/publisher.js") {
-		ctx.Header("Cache-Control", "max-age=3600")
+		ctx.Header("Cache-Control", "no-cache")
 		ctx.Header("Content-Type", "application/javascript")
+
+		// Try reading from filesystem first (for development)
+		content, err := os.ReadFile("internal/servers/webrtc/publisher.js")
+		if err != nil {
+			// Fall back to embedded content
+			content = publisherJS
+		}
+
 		ctx.Writer.WriteHeader(http.StatusOK)
-		ctx.Writer.Write(publisherJS)
+		ctx.Writer.Write(content)
 		return
 	}
 
 	if strings.HasSuffix(ctx.Request.URL.Path, "/reader.js") {
-		ctx.Header("Cache-Control", "max-age=3600")
+		ctx.Header("Cache-Control", "no-cache")
 		ctx.Header("Content-Type", "application/javascript")
+
+		// Try reading from filesystem first (for development)
+		content, err := os.ReadFile("internal/servers/webrtc/reader.js")
+		if err != nil {
+			// Fall back to embedded content
+			content = readerJS
+		}
+
 		ctx.Writer.WriteHeader(http.StatusOK)
-		ctx.Writer.Write(readerJS)
+		ctx.Writer.Write(content)
 		return
 	}
 
