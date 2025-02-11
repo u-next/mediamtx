@@ -134,18 +134,54 @@ html, body {
 .grid-container {
     flex: 1;
     padding: 20px;
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
+    position: relative;
 }
 
-/* Grid layouts */
-.grid-1 { grid-template-columns: 1fr; }
-.grid-2 { grid-template-columns: repeat(2, 1fr); }
-.grid-2x2 { grid-template-columns: repeat(2, 1fr); }
-.grid-3x2 { grid-template-columns: repeat(3, 1fr); }
-.grid-4x3 { grid-template-columns: repeat(4, 1fr); }
+.grid-row {
+    display: flex;
+    width: 100%;
+    gap: 10px;
+}
+
+.grid-cell {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+}
+
+.grid-resizer {
+    position: absolute;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.2s;
+}
+
+.grid-resizer:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.grid-resizer.vertical {
+    cursor: col-resize;
+    width: 10px;
+    height: 100%;
+    right: -5px;
+    top: 0;
+}
+
+.grid-resizer.horizontal {
+    cursor: row-resize;
+    height: 10px;
+    width: 100%;
+    bottom: -5px;
+    left: 0;
+}
+
+.grid-resizer.dragging {
+    background: rgba(255, 255, 255, 0.5);
+}
 
 .player-container {
     display: flex;
@@ -539,19 +575,123 @@ const MAX_STREAMS = 12;
 
 function updateGridLayout() {
     const count = activeStreams.size;
-    gridContainer.className = 'grid-container';
+    gridContainer.innerHTML = '';
     
+    let rows, cols;
     if (count <= 1) {
-        gridContainer.classList.add('grid-1');
+        rows = 1; cols = 1;
     } else if (count === 2) {
-        gridContainer.classList.add('grid-2');
+        rows = 1; cols = 2;
     } else if (count <= 4) {
-        gridContainer.classList.add('grid-2x2');
+        rows = 2; cols = 2;
     } else if (count <= 6) {
-        gridContainer.classList.add('grid-3x2');
+        rows = 2; cols = 3;
     } else {
-        gridContainer.classList.add('grid-4x3');
+        rows = 3; cols = 4;
     }
+
+    const streams = Array.from(activeStreams.entries());
+    let streamIndex = 0;
+
+    for (let i = 0; i < rows; i++) {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'grid-row';
+        rowDiv.style.height = `${100 / rows}%`;
+
+        for (let j = 0; j < cols && streamIndex < streams.length; j++) {
+            const cellDiv = document.createElement('div');
+            cellDiv.className = 'grid-cell';
+            cellDiv.style.flex = '1';
+
+            // Add vertical resizer if not last column
+            if (j < cols - 1) {
+                const resizer = document.createElement('div');
+                resizer.className = 'grid-resizer vertical';
+                setupResizer(resizer, 'horizontal');
+                cellDiv.appendChild(resizer);
+            }
+
+            // Add horizontal resizer if not last row
+            if (i < rows - 1) {
+                const resizer = document.createElement('div');
+                resizer.className = 'grid-resizer horizontal';
+                setupResizer(resizer, 'vertical');
+                cellDiv.appendChild(resizer);
+            }
+
+            const [streamPath, stream] = streams[streamIndex++];
+            cellDiv.appendChild(stream.container);
+            rowDiv.appendChild(cellDiv);
+        }
+
+        gridContainer.appendChild(rowDiv);
+    }
+}
+
+function setupResizer(resizer, direction) {
+    let startX, startY;
+    let startWidth, startHeight;
+    let cell, nextCell, row, nextRow;
+
+    function initDrag(e) {
+        resizer.classList.add('dragging');
+        
+        if (direction === 'horizontal') {
+            cell = resizer.parentElement;
+            nextCell = cell.nextElementSibling;
+            startX = e.clientX;
+            startWidth = cell.getBoundingClientRect().width;
+            const nextWidth = nextCell.getBoundingClientRect().width;
+            const totalWidth = startWidth + nextWidth;
+            
+            const mouseMoveHandler = (e) => {
+                const dx = e.clientX - startX;
+                const newWidth = Math.min(Math.max(50, startWidth + dx), totalWidth - 50);
+                const nextWidth = totalWidth - newWidth;
+                
+                cell.style.flex = 'none';
+                nextCell.style.flex = 'none';
+                cell.style.width = newWidth + 'px';
+                nextCell.style.width = nextWidth + 'px';
+            };
+            
+            const mouseUpHandler = () => {
+                resizer.classList.remove('dragging');
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+            };
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        } else {
+            row = resizer.parentElement.parentElement;
+            nextRow = row.nextElementSibling;
+            startY = e.clientY;
+            startHeight = row.getBoundingClientRect().height;
+            const nextHeight = nextRow.getBoundingClientRect().height;
+            const totalHeight = startHeight + nextHeight;
+            
+            const mouseMoveHandler = (e) => {
+                const dy = e.clientY - startY;
+                const newHeight = Math.min(Math.max(50, startHeight + dy), totalHeight - 50);
+                const nextHeight = totalHeight - newHeight;
+                
+                row.style.height = newHeight + 'px';
+                nextRow.style.height = nextHeight + 'px';
+            };
+            
+            const mouseUpHandler = () => {
+                resizer.classList.remove('dragging');
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+            };
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        }
+    }
+
+    resizer.addEventListener('mousedown', initDrag);
 }
 
 function getAudioOnlyStreams(paths, basePath) {
