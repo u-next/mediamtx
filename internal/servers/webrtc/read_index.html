@@ -311,6 +311,28 @@ html, body {
 .control-button:hover {
     background: rgb(60, 60, 60);
 }
+
+.system-stats {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgb(60, 60, 60);
+    color: #888;
+    font-size: 14px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    color: #aaa;
+}
+
+.stat-label {
+    margin-right: 10px;
+}
 </style>
 </head>
 <body>
@@ -326,6 +348,20 @@ html, body {
                 <button class="control-button" onclick="muteAllVideos()">🔇 MUTE ALL</button>
                 <button class="control-button" onclick="unmuteAllVideos()">🔊 UNMUTE ALL</button>
                 <button class="control-button" onclick="clearAllStreams()">🗑️ CLEAR</button>
+            </div>
+            <div class="system-stats">
+                <div class="stat-item">
+                    <span class="stat-label">CPU Usage:</span>
+                    <span class="stat-value" id="cpuUsage">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Memory Usage:</span>
+                    <span class="stat-value" id="memoryUsage">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Disk Usage:</span>
+                    <span class="stat-value" id="diskUsage">-</span>
+                </div>
             </div>
         </div>
     </div>
@@ -922,9 +958,39 @@ async function fetchStreams() {
     }
 }
 
+// Function to fetch system stats
+async function fetchSystemStats() {
+    try {
+        const response = await fetch('/system/stats');
+        const data = await response.json();
+        
+        // Update CPU usage
+        const cpuElement = document.getElementById('cpuUsage');
+        if (data.cpu) {
+            cpuElement.textContent = data.cpu.toFixed(1) + '%';
+        }
+        
+        // Update memory usage
+        const memElement = document.getElementById('memoryUsage');
+        if (data.memory) {
+            memElement.textContent = data.memory.toFixed(1) + '%';
+        }
+        
+        // Update disk usage
+        const diskElement = document.getElementById('diskUsage');
+        if (data.disk) {
+            diskElement.textContent = data.disk.toFixed(1) + '%';
+        }
+    } catch (error) {
+        console.error('Failed to fetch system stats:', error);
+    }
+}
+
 // Initial load and periodic updates
 fetchStreams();
+fetchSystemStats();
 setInterval(fetchStreams, 5000);
+setInterval(fetchSystemStats, 15000);
 </script>
 
 </body>
