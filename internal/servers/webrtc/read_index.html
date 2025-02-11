@@ -828,7 +828,9 @@ function createStreamItem(path, paths, hashStreams) {
         nameSpan.className = 'static-stream';
     }
     const readerCount = path.readers ? path.readers.length : 0;
-    nameSpan.textContent = path.name + " [" + readerCount + "]";
+    const audioStreams = getAudioOnlyStreams(paths, path.name);
+    const audioCount = audioStreams.length;
+    nameSpan.textContent = path.name + (audioCount > 0 ? ` [A:${audioCount+1}]` : "") + ` [R:${readerCount}]`;
     label.appendChild(nameSpan);
 
     item.appendChild(label);
