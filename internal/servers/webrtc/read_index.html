@@ -78,12 +78,57 @@ html, body {
     margin: 0;
 }
 
+.stream-group {
+    margin-bottom: 15px;
+}
+
+.group-header {
+    background: rgb(50, 50, 50);
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.group-header:hover {
+    background: rgb(60, 60, 60);
+}
+
+.group-header .arrow {
+    margin-right: 8px;
+    transition: transform 0.3s;
+}
+
+.group-header.collapsed .arrow {
+    transform: rotate(-90deg);
+}
+
+.group-content {
+    padding-left: 15px;
+    overflow: hidden;
+    max-height: 1000px;
+    transition: max-height 0.3s ease-out;
+}
+
+.group-content.collapsed {
+    max-height: 0;
+}
+
 .stream-item {
     margin-bottom: 10px;
 }
 
 .stream-checkbox {
     margin-right: 8px;
+}
+
+.ungrouped-header {
+    color: #888;
+    font-size: 14px;
+    margin: 15px 0 10px;
+    padding-left: 8px;
 }
 
 .grid-container {
@@ -673,49 +718,121 @@ function toggleStream(streamPath, checked, allPaths, updateHash = true) {
     return true;
 }
 
+// Track expanded state of groups
+let expandedGroups = new Set();
+
 function updateStreamList(paths) {
     // Get streams from URL hash on first load
     const hashStreams = getStreamsFromHash();
+    
     streamList.innerHTML = '';
     
     // Filter out audio-only streams and ensure valid paths
     const videoStreams = paths.filter(path => path && path.name && !path.name.includes('__aa__'));
     
+    // Group streams by their prefix (before hyphen)
+    const groups = new Map();
+    const ungroupedStreams = [];
+    
     videoStreams.forEach(path => {
-        const item = document.createElement('div');
-        item.className = 'stream-item';
+        const hyphenIndex = path.name.indexOf('-');
+        if (hyphenIndex !== -1) {
+            const groupName = path.name.substring(0, hyphenIndex);
+            if (!groups.has(groupName)) {
+                groups.set(groupName, []);
+            }
+            groups.get(groupName).push(path);
+        } else {
+            ungroupedStreams.push(path);
+        }
+    });
+    
+    // Create groups
+    groups.forEach((groupPaths, groupName) => {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'stream-group';
         
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'stream-checkbox';
-        checkbox.checked = activeStreams.has(path.name);
-        checkbox.onchange = (e) => {
-            const success = toggleStream(path.name, e.target.checked, paths);
-            if (!success) {
-                e.target.checked = false;
+        // Create group header
+        const header = document.createElement('div');
+        const isCollapsed = !expandedGroups.has(groupName);
+        header.className = 'group-header' + (isCollapsed ? ' collapsed' : '');
+        header.innerHTML = `<span class="arrow">▼</span>${groupName} (${groupPaths.length})`;
+        
+        // Create group content
+        const content = document.createElement('div');
+        content.className = 'group-content' + (isCollapsed ? ' collapsed' : '');
+        
+        // Toggle collapse on header click
+        header.onclick = () => {
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+            // Update expanded groups tracking
+            if (!header.classList.contains('collapsed')) {
+                expandedGroups.add(groupName);
+            } else {
+                expandedGroups.delete(groupName);
             }
         };
-
-        // Auto-select streams from hash on first load
-        if (hashStreams.includes(path.name) && !activeStreams.has(path.name)) {
-            toggleStream(path.name, true, paths, false);
-            checkbox.checked = true;
-        }
         
-        const label = document.createElement('label');
-        label.appendChild(checkbox);
+        // Add streams to group
+        groupPaths.forEach(path => {
+            const item = createStreamItem(path, paths, hashStreams);
+            content.appendChild(item);
+        });
         
-        const nameSpan = document.createElement('span');
-        if (path.isStaticOnly) {
-            nameSpan.className = 'static-stream';
-        }
-        const readerCount = path.readers ? path.readers.length : 0;
-        nameSpan.textContent = path.name + " [" + readerCount + "]";
-        label.appendChild(nameSpan);
-
-        item.appendChild(label);
-        streamList.appendChild(item);
+        groupDiv.appendChild(header);
+        groupDiv.appendChild(content);
+        streamList.appendChild(groupDiv);
     });
+    
+    // Add ungrouped streams if any
+    if (ungroupedStreams.length > 0) {
+        const ungroupedHeader = document.createElement('div');
+        ungroupedHeader.className = 'ungrouped-header';
+        ungroupedHeader.textContent = 'Other Streams';
+        streamList.appendChild(ungroupedHeader);
+        
+        ungroupedStreams.forEach(path => {
+            const item = createStreamItem(path, paths, hashStreams);
+            streamList.appendChild(item);
+        });
+    }
+}
+
+function createStreamItem(path, paths, hashStreams) {
+    const item = document.createElement('div');
+    item.className = 'stream-item';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'stream-checkbox';
+    checkbox.checked = activeStreams.has(path.name);
+    checkbox.onchange = (e) => {
+        const success = toggleStream(path.name, e.target.checked, paths);
+        if (!success) {
+            e.target.checked = false;
+        }
+    };
+
+    // Auto-select streams from hash on first load
+    if (hashStreams.includes(path.name) && !activeStreams.has(path.name)) {
+        toggleStream(path.name, true, paths, false);
+        checkbox.checked = true;
+    }
+    
+    const label = document.createElement('label');
+    label.appendChild(checkbox);
+    
+    const nameSpan = document.createElement('span');
+    if (path.isStaticOnly) {
+        nameSpan.className = 'static-stream';
+    }
+    const readerCount = path.readers ? path.readers.length : 0;
+    nameSpan.textContent = path.name + " [" + readerCount + "]";
+    label.appendChild(nameSpan);
+
+    item.appendChild(label);
+    return item;
 }
 
 function muteAllVideos() {
