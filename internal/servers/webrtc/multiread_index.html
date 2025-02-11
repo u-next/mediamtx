@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Arial', sans-serif;
+    background: rgb(30, 30, 30);
+    color: white;
+}
+
+.container {
+    display: flex;
+    height: 100%;
+}
+
+.sidebar {
+    width: 250px;
+    background: rgb(40, 40, 40);
+    padding: 20px;
+    overflow-y: auto;
+    border-right: 1px solid rgb(60, 60, 60);
+    transition: width 0.3s, padding 0.3s;
+    position: relative;
+}
+
+.sidebar.collapsed {
+    width: 0;
+    padding: 0;
+}
+
+.sidebar-toggle {
+    position: fixed;
+    left: 250px;
+    top: 10px;
+    width: 30px;
+    height: 30px;
+    background: rgb(40, 40, 40);
+    border: none;
+    border-radius: 0 4px 4px 0;
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    z-index: 100;
+    transition: left 0.3s;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+    left: 0;
+}
+
+.sidebar-toggle:hover {
+    background: rgb(50, 50, 50);
+    color: white;
+}
+
+.sidebar-content {
+    width: 250px;
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .sidebar-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.stream-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.stream-group {
+    margin-bottom: 15px;
+}
+
+.group-header {
+    background: rgb(50, 50, 50);
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.group-header:hover {
+    background: rgb(60, 60, 60);
+}
+
+.group-header .arrow {
+    margin-right: 8px;
+    transition: transform 0.3s;
+}
+
+.group-header.collapsed .arrow {
+    transform: rotate(-90deg);
+}
+
+.group-content {
+    padding-left: 15px;
+    overflow: hidden;
+    max-height: 1000px;
+    transition: max-height 0.3s ease-out;
+}
+
+.group-content.collapsed {
+    max-height: 0;
+}
+
+.stream-item {
+    margin-bottom: 10px;
+}
+
+.stream-checkbox {
+    margin-right: 8px;
+}
+
+.ungrouped-header {
+    color: #888;
+    font-size: 14px;
+    margin: 15px 0 10px;
+    padding-left: 8px;
+}
+
+.grid-container {
+    flex: 1;
+    padding: 20px;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+
+/* Grid layouts */
+.grid-1 { grid-template-columns: 1fr; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-2x2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3x2 { grid-template-columns: repeat(3, 1fr); }
+.grid-4x3 { grid-template-columns: repeat(4, 1fr); }
+
+.player-container {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    background: black;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.video-container {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+}
+
+.video-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.audio-container {
+    padding: 5px;
+    background: rgb(20, 20, 20);
+}
+
+.audio-track {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 10px;
+}
+
+.audio-track:last-child {
+    margin-bottom: 0;
+}
+
+.audio-track audio {
+    flex: 1;
+    height: 30px;
+    display: none;
+}
+
+.audio-track-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.audio-track-volume {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: #444;
+    border-radius: 2px;
+    outline: none;
+}
+
+.audio-track-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #888;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.audio-track-volume::-webkit-slider-thumb:hover {
+    background: #aaa;
+}
+
+.audio-track-mute {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    color: #888;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.audio-track-mute:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.audio-track-mute.muted {
+    color: #f44;
+}
+
+.audio-track-label {
+    font-size: 12px;
+    color: #888;
+    width: 100px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stream-label {
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 14px;
+    text-align: center;
+}
+
+.error-message {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    color: #ff4444;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.sidebar h2 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+}
+
+.stream-count {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #888;
+}
+
+.static-stream {
+    color: #888;
+}
+
+.control-buttons {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.control-button {
+    background: rgb(50, 50, 50);
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.control-button:hover {
+    background: rgb(60, 60, 60);
+}
+
+.system-stats {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgb(60, 60, 60);
+    color: #888;
+    font-size: 14px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    color: #aaa;
+}
+
+.stat-label {
+    margin-right: 10px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div id="sidebar" class="sidebar">
+        <button id="sidebarToggle" class="sidebar-toggle">◀</button>
+        <div class="sidebar-content">
+            <h2>TacoScope</h2>
+            <div id="streamList" class="stream-list"></div>
+            <div class="stream-count">Selected: <span id="streamCount">0</span>/12</div>
+            <div class="control-buttons">
+                <button class="control-button" onclick="muteAllVideos()">🔇 MUTE ALL</button>
+                <button class="control-button" onclick="unmuteAllVideos()">🔊 UNMUTE ALL</button>
+                <button class="control-button" onclick="clearAllStreams()">🗑️ CLEAR</button>
+            </div>
+            <div class="system-stats">
+                <div class="stat-item">
+                    <span class="stat-label">CPU Usage:</span>
+                    <span class="stat-value" id="cpuUsage">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Memory Usage:</span>
+                    <span class="stat-value" id="memoryUsage">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Disk Usage:</span>
+                    <span class="stat-value" id="diskUsage">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="gridContainer" class="grid-container"></div>
+</div>
+
+<script>
+// Sidebar toggle functionality
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+
+sidebarToggle.onclick = () => {
+    sidebar.classList.toggle('collapsed');
+    sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+};
+</script>
+
+<script>
+const unquoteCredential = (v) => (
+    JSON.parse(`"${v}"`)
+);
+
+const linkToIceServers = (links) => (
+    (links !== null) ? links.split(', ').map((link) => {
+        const m = link.match(/^<(.+?)>; rel="ice-server"(; username="(.*?)"; credential="(.*?)"; credential-type="password")?/i);
+        const ret = {
+            urls: [m[1]],
+        };
+
+        if (m[3] !== undefined) {
+            ret.username = unquoteCredential(m[3]);
+            ret.credential = unquoteCredential(m[4]);
+            ret.credentialType = 'password';
+        }
+
+        return ret;
+    }) : []
+);
+
+// MediaMTXWebRTCReader implementation
+class MediaMTXWebRTCReader {
+    constructor(props) {
+        this.props = props;
+        this.pc = null;
+        this.restartTimeout = null;
+        this.isDestroyed = false;
+        this.initialize();
+    }
+
+    cleanup() {
+        this.isDestroyed = true;
+        
+        // Clear any pending restart
+        if (this.restartTimeout) {
+            clearTimeout(this.restartTimeout);
+            this.restartTimeout = null;
+        }
+
+        // Close peer connection if it exists
+        if (this.pc) {
+            // Close all transceivers
+            const transceivers = this.pc.getTransceivers();
+            transceivers.forEach(transceiver => {
+                if (transceiver.stop) {
+                    transceiver.stop();
+                }
+            });
+
+            // Close the connection
+            this.pc.close();
+            this.pc = null;
+        }
+    }
+
+    async initialize() {
+        if (this.isDestroyed) {
+            return;
+        }
+
+        try {
+            console.log('Initializing WebRTC for URL:', this.props.url);
+            
+            // Request ICE servers first
+            const iceResponse = await fetch(this.props.url, {
+                method: 'OPTIONS',
+            }).catch(err => {
+                console.error('OPTIONS request failed:', err);
+                throw err;
+            });
+            const iceServers = linkToIceServers(iceResponse.headers.get('Link'));
+            console.log('ICE servers:', iceServers);
+
+            const pc = new RTCPeerConnection({
+                iceServers,
+                sdpSemantics: 'unified-plan',
+            });
+
+            pc.onicecandidate = (evt) => {
+                if (evt.candidate === null) {
+                    this.publishDescription(pc.localDescription);
+                }
+            };
+
+            pc.ontrack = (evt) => {
+                if (this.props.onTrack) {
+                    this.props.onTrack(evt);
+                }
+            };
+
+            pc.addTransceiver('video', {
+                direction: 'recvonly'
+            });
+            pc.addTransceiver('audio', {
+                direction: 'recvonly'
+            });
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            this.pc = pc;
+        } catch (err) {
+            console.error('initialize() error:', err);
+            if (this.props.onError) {
+                this.props.onError(err.message);
+            }
+        }
+    }
+
+    async publishDescription(desc) {
+        try {
+            console.log('Publishing SDP:', desc.sdp);
+            const res = await fetch(this.props.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/sdp',
+                },
+                body: desc.sdp,
+            }).catch(err => {
+                console.error('POST request failed:', err);
+                throw err;
+            });
+
+            if (res.status !== 201) {
+                throw new Error('bad status code: ' + res.status);
+            }
+
+            const sdp = await res.text();
+            await this.pc.setRemoteDescription(new RTCSessionDescription({
+                type: 'answer',
+                sdp,
+            }));
+        } catch (err) {
+            console.error('publishDescription() error:', err);
+            if (this.props.onError) {
+                this.props.onError(err.message);
+            }
+
+            if (this.restartTimeout) {
+                clearTimeout(this.restartTimeout);
+            }
+
+            this.restartTimeout = setTimeout(() => {
+                this.initialize();
+            }, 5000);
+        }
+    }
+}
+
+const gridContainer = document.getElementById('gridContainer');
+const streamList = document.getElementById('streamList');
+const streamCount = document.getElementById('streamCount');
+
+let activeStreams = new Map();
+const MAX_STREAMS = 12;
+
+function updateGridLayout() {
+    const count = activeStreams.size;
+    gridContainer.className = 'grid-container';
+    
+    if (count <= 1) {
+        gridContainer.classList.add('grid-1');
+    } else if (count === 2) {
+        gridContainer.classList.add('grid-2');
+    } else if (count <= 4) {
+        gridContainer.classList.add('grid-2x2');
+    } else if (count <= 6) {
+        gridContainer.classList.add('grid-3x2');
+    } else {
+        gridContainer.classList.add('grid-4x3');
+    }
+}
+
+function getAudioOnlyStreams(paths, basePath) {
+    if (!Array.isArray(paths)) return [];
+    return paths
+        .filter(path => path && path.name && path.name.startsWith(basePath + '__aa__'))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function createAudioPlayer(streamPath) {
+    const audio = document.createElement('audio');
+    audio.muted = true;
+    audio.autoplay = true;
+
+    const controls = document.createElement('div');
+    controls.className = 'audio-track-controls';
+
+    const volume = document.createElement('input');
+    volume.type = 'range';
+    volume.className = 'audio-track-volume';
+    volume.min = 0;
+    volume.max = 1;
+    volume.step = 0.01;
+    volume.value = 1;
+    volume.onchange = () => {
+        audio.volume = volume.value;
+    };
+
+    const muteBtn = document.createElement('button');
+    muteBtn.className = 'audio-track-mute muted';
+    muteBtn.innerHTML = '🔇';
+    muteBtn.onclick = () => {
+        audio.muted = !audio.muted;
+        muteBtn.innerHTML = audio.muted ? '🔇' : '🔊';
+        muteBtn.className = 'audio-track-mute' + (audio.muted ? ' muted' : '');
+    };
+
+    controls.appendChild(volume);
+    controls.appendChild(muteBtn);
+
+    const reader = new MediaMTXWebRTCReader({
+        url: window.location.origin + '/' + streamPath + '/whep',
+        onError: (err) => {
+            muteBtn.title = 'Error: ' + err;
+        },
+        onTrack: (evt) => {
+            audio.srcObject = evt.streams[0];
+            audio.play().catch(console.error);
+        },
+    });
+
+    return { audio, controls, reader };
+}
+
+function createPlayerContainer(streamPath, allPaths) {
+    const container = document.createElement('div');
+    container.className = 'player-container';
+    
+    const videoContainer = document.createElement('div');
+    videoContainer.className = 'video-container';
+    
+    const video = document.createElement('video');
+    video.controls = true;
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    
+    videoContainer.appendChild(video);
+    container.appendChild(videoContainer);
+    
+    // Add additional audio tracks if any
+    const audioStreams = getAudioOnlyStreams(allPaths, streamPath);
+    if (audioStreams.length > 0) {
+        const audioContainer = document.createElement('div');
+        audioContainer.className = 'audio-container';
+        
+        audioStreams.forEach(stream => {
+            const trackDiv = document.createElement('div');
+            trackDiv.className = 'audio-track';
+            
+            const label = document.createElement('div');
+            label.className = 'audio-track-label';
+            label.title = stream.name;
+            // Extract the part after __aa__
+            const match = stream.name.match(/__aa__(.+)$/);
+            label.textContent = match ? match[1] : stream.name;
+            
+            const { audio, controls } = createAudioPlayer(stream.name);
+            
+            trackDiv.appendChild(label);
+            trackDiv.appendChild(controls);
+            trackDiv.appendChild(audio); // Hidden but needed for playback
+            audioContainer.appendChild(trackDiv);
+        });
+        container.appendChild(audioContainer);
+    }
+
+    // Add main label at the bottom
+    const label = document.createElement('div');
+    label.className = 'stream-label';
+    label.textContent = streamPath.split('/').pop();
+    container.appendChild(label);
+    
+    return { container, video };
+}
+
+function setPlayerError(container, error) {
+    const existing = container.querySelector('.error-message');
+    if (existing) {
+        existing.textContent = error;
+    } else {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = error;
+        container.appendChild(errorDiv);
+    }
+}
+
+function clearPlayerError(container) {
+    const error = container.querySelector('.error-message');
+    if (error) {
+        error.remove();
+    }
+}
+
+// URL hash handling
+function updateUrlHash() {
+    const activeStreamPaths = Array.from(activeStreams.keys());
+    window.location.hash = activeStreamPaths.join(',');
+}
+
+function getStreamsFromHash() {
+    const hash = window.location.hash.slice(1);
+    return hash ? hash.split(',') : [];
+}
+
+function toggleStream(streamPath, checked, allPaths, updateHash = true) {
+    if (checked) {
+        if (activeStreams.size >= MAX_STREAMS) {
+            alert(`Maximum ${MAX_STREAMS} streams allowed`);
+            return false;
+        }
+        
+        const { container, video } = createPlayerContainer(streamPath, allPaths);
+        gridContainer.appendChild(container);
+        
+        const reader = new MediaMTXWebRTCReader({
+            url: window.location.origin + '/' + streamPath + '/whep',
+            onError: (err) => {
+                setPlayerError(container, err);
+            },
+            onTrack: (evt) => {
+                clearPlayerError(container);
+                video.srcObject = evt.streams[0];
+            },
+        });
+        
+        activeStreams.set(streamPath, { container, reader });
+    } else {
+        const stream = activeStreams.get(streamPath);
+        if (stream) {
+            // Clean up video element
+            const video = stream.container.querySelector('video');
+            if (video) {
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                video.srcObject = null;
+                video.load();
+            }
+
+            // Clean up audio elements
+            const audioElements = stream.container.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                if (audio.srcObject) {
+                    audio.srcObject.getTracks().forEach(track => track.stop());
+                }
+                audio.srcObject = null;
+                audio.load();
+            });
+
+            // Clean up WebRTC
+            if (stream.reader) {
+                stream.reader.cleanup();
+            }
+
+            // Remove container
+            stream.container.remove();
+            activeStreams.delete(streamPath);
+        }
+    }
+    
+    updateGridLayout();
+    streamCount.textContent = activeStreams.size;
+    
+    if (updateHash) {
+        updateUrlHash();
+    }
+    
+    return true;
+}
+
+// Track expanded state of groups
+let expandedGroups = new Set();
+
+function updateStreamList(paths) {
+    // Get streams from URL hash on first load
+    const hashStreams = getStreamsFromHash();
+    
+    streamList.innerHTML = '';
+    
+    // Filter out audio-only streams and ensure valid paths
+    const videoStreams = paths.filter(path => path && path.name && !path.name.includes('__aa__'));
+    
+    // Group streams by their prefix (before hyphen)
+    const groups = new Map();
+    const ungroupedStreams = [];
+    
+    videoStreams.forEach(path => {
+        const hyphenIndex = path.name.indexOf('-');
+        if (hyphenIndex !== -1) {
+            const groupName = path.name.substring(0, hyphenIndex);
+            if (!groups.has(groupName)) {
+                groups.set(groupName, []);
+            }
+            groups.get(groupName).push(path);
+        } else {
+            ungroupedStreams.push(path);
+        }
+    });
+    
+    // Create groups
+    groups.forEach((groupPaths, groupName) => {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'stream-group';
+        
+        // Create group header
+        const header = document.createElement('div');
+        const isCollapsed = !expandedGroups.has(groupName);
+        header.className = 'group-header' + (isCollapsed ? ' collapsed' : '');
+        header.innerHTML = `<span class="arrow">▼</span>${groupName} (${groupPaths.length})`;
+        
+        // Create group content
+        const content = document.createElement('div');
+        content.className = 'group-content' + (isCollapsed ? ' collapsed' : '');
+        
+        // Toggle collapse on header click
+        header.onclick = () => {
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+            // Update expanded groups tracking
+            if (!header.classList.contains('collapsed')) {
+                expandedGroups.add(groupName);
+            } else {
+                expandedGroups.delete(groupName);
+            }
+        };
+        
+        // Add streams to group
+        groupPaths.forEach(path => {
+            const item = createStreamItem(path, paths, hashStreams);
+            content.appendChild(item);
+        });
+        
+        groupDiv.appendChild(header);
+        groupDiv.appendChild(content);
+        streamList.appendChild(groupDiv);
+    });
+    
+    // Add ungrouped streams if any
+    if (ungroupedStreams.length > 0) {
+        const ungroupedHeader = document.createElement('div');
+        ungroupedHeader.className = 'ungrouped-header';
+        ungroupedHeader.textContent = 'Other Streams';
+        streamList.appendChild(ungroupedHeader);
+        
+        ungroupedStreams.forEach(path => {
+            const item = createStreamItem(path, paths, hashStreams);
+            streamList.appendChild(item);
+        });
+    }
+}
+
+function createStreamItem(path, paths, hashStreams) {
+    const item = document.createElement('div');
+    item.className = 'stream-item';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'stream-checkbox';
+    checkbox.checked = activeStreams.has(path.name);
+    checkbox.onchange = (e) => {
+        const success = toggleStream(path.name, e.target.checked, paths);
+        if (!success) {
+            e.target.checked = false;
+        }
+    };
+
+    // Auto-select streams from hash on first load
+    if (hashStreams.includes(path.name) && !activeStreams.has(path.name)) {
+        toggleStream(path.name, true, paths, false);
+        checkbox.checked = true;
+    }
+    
+    const label = document.createElement('label');
+    label.appendChild(checkbox);
+    
+    const nameSpan = document.createElement('span');
+    if (path.isStaticOnly) {
+        nameSpan.className = 'static-stream';
+    }
+    const readerCount = path.readers ? path.readers.length : 0;
+    const audioStreams = getAudioOnlyStreams(paths, path.name);
+    const audioCount = audioStreams.length;
+    nameSpan.textContent = path.name + (audioCount > 0 ? ` [A:${audioCount+1}]` : "") + ` [R:${readerCount}]`;
+    label.appendChild(nameSpan);
+
+    item.appendChild(label);
+    return item;
+}
+
+function muteAllVideos() {
+    activeStreams.forEach(stream => {
+        const video = stream.container.querySelector('video');
+        if (video) {
+            video.muted = true;
+        }
+    });
+}
+
+function unmuteAllVideos() {
+    activeStreams.forEach(stream => {
+        const video = stream.container.querySelector('video');
+        if (video) {
+            video.muted = false;
+        }
+    });
+}
+
+function clearAllStreams() {
+    // Get all checkboxes
+    const checkboxes = document.querySelectorAll('.stream-checkbox');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            checkbox.checked = false;
+            toggleStream(checkbox.parentElement.querySelector('span').textContent.split(' [')[0], false, [], true);
+        }
+    });
+}
+
+async function fetchStaticStreams() {
+    try {
+        const response = await fetch('/streams.json');
+        const data = await response.json();
+        return data.items || [];
+    } catch (error) {
+        console.error('Failed to fetch static streams:', error);
+        return [];
+    }
+}
+
+async function fetchLiveStreams() {
+    try {
+        const response = await fetch('/v3/paths/list');
+        const data = await response.json();
+        return data.items || [];
+    } catch (error) {
+        console.error('Failed to fetch live streams:', error);
+        return [];
+    }
+}
+
+async function fetchStreams() {
+    try {
+        const [staticStreams, liveStreams] = await Promise.all([
+            fetchStaticStreams(),
+            fetchLiveStreams()
+        ]);
+
+        // Start with live streams
+        const combinedStreams = liveStreams.map(stream => ({
+            ...stream,
+            isStaticOnly: false
+        }));
+
+        // Create a map of live streams for quick lookup
+        const liveStreamMap = new Map(liveStreams.map(stream => [stream.name, stream]));
+
+        // Add static streams that don't exist in live streams
+        staticStreams.forEach(staticStream => {
+            if (!liveStreamMap.has(staticStream.name)) {
+                combinedStreams.push({
+                    name: staticStream.name,
+                    readers: [], // Initialize with empty readers array
+                    sourceReady: false,
+                    isStaticOnly: true
+                });
+            }
+        });
+
+        updateStreamList(combinedStreams);
+    } catch (error) {
+        console.error('Failed to fetch streams:', error);
+    }
+}
+
+// Function to fetch system stats
+async function fetchSystemStats() {
+    try {
+        const response = await fetch('/system/stats');
+        const data = await response.json();
+        
+        // Update CPU usage
+        const cpuElement = document.getElementById('cpuUsage');
+        if (data.cpu) {
+            cpuElement.textContent = data.cpu.toFixed(1) + '%';
+        }
+        
+        // Update memory usage
+        const memElement = document.getElementById('memoryUsage');
+        if (data.memory) {
+            memElement.textContent = data.memory.toFixed(1) + '%';
+        }
+        
+        // Update disk usage
+        const diskElement = document.getElementById('diskUsage');
+        if (data.disk) {
+            diskElement.textContent = data.disk.toFixed(1) + '%';
+        }
+    } catch (error) {
+        console.error('Failed to fetch system stats:', error);
+    }
+}
+
+// Initial load and periodic updates
+fetchStreams();
+fetchSystemStats();
+setInterval(fetchStreams, 5000);
+setInterval(fetchSystemStats, 15000);
+</script>
+
+</body>
+</html>

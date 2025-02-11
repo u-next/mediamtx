@@ -33,6 +33,9 @@ var publishIndex []byte
 //go:embed publisher.js
 var publisherJS []byte
 
+//go:embed multiread_index.html
+var multireadIndex []byte
+
 //go:embed read_index.html
 var readIndex []byte
 
@@ -358,21 +361,27 @@ func (s *httpServer) onPage(ctx *gin.Context, pathName string, publish bool) {
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Content-Type", "text/html")
 
-	var filename string
-	if publish {
-		filename = "internal/servers/webrtc/publish_index.html"
-	} else {
-		filename = "internal/servers/webrtc/read_index.html"
-	}
+	var content []byte
+	var err error
 
-	// Try reading from filesystem first (for development)
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		// Fall back to embedded content
+	if pathName == "scope" {
+		// Try reading from filesystem first (for development)
+		content, err = os.ReadFile("internal/servers/webrtc/multiread_index.html")
+		if err != nil {
+			// Fall back to embedded content
+			content = multireadIndex
+		}
+	} else {
 		if publish {
-			content = publishIndex
+			content, err = os.ReadFile("internal/servers/webrtc/publish_index.html")
+			if err != nil {
+				content = publishIndex
+			}
 		} else {
-			content = readIndex
+			content, err = os.ReadFile("internal/servers/webrtc/read_index.html")
+			if err != nil {
+				content = readIndex
+			}
 		}
 	}
 
