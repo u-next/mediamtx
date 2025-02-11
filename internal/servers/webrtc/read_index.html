@@ -476,7 +476,7 @@ function updateGridLayout() {
 function getAudioOnlyStreams(paths, basePath) {
     if (!Array.isArray(paths)) return [];
     return paths
-        .filter(path => path && path.name && path.name.startsWith(basePath + '-aa'))
+        .filter(path => path && path.name && path.name.startsWith(basePath + '__aa__'))
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -554,8 +554,8 @@ function createPlayerContainer(streamPath, allPaths) {
             const label = document.createElement('div');
             label.className = 'audio-track-label';
             label.title = stream.name;
-            // Extract the part after -aa
-            const match = stream.name.match(/-(aa\d+)/);
+            // Extract the part after __aa__
+            const match = stream.name.match(/__aa__(.+)$/);
             label.textContent = match ? match[1] : stream.name;
             
             const { audio, controls } = createAudioPlayer(stream.name);
@@ -679,7 +679,7 @@ function updateStreamList(paths) {
     streamList.innerHTML = '';
     
     // Filter out audio-only streams and ensure valid paths
-    const videoStreams = paths.filter(path => path && path.name && !path.name.includes('-aa'));
+    const videoStreams = paths.filter(path => path && path.name && !path.name.includes('__aa__'));
     
     videoStreams.forEach(path => {
         const item = document.createElement('div');
