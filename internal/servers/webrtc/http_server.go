@@ -364,7 +364,7 @@ func (s *httpServer) middlewareOrigin(ctx *gin.Context) {
 
 func (s *httpServer) onRequest(ctx *gin.Context) {
 	if ctx.Request.URL.Path == "/streams.json" {
-		content, err := os.ReadFile("internal/servers/webrtc/streams.json")
+		content, err := os.ReadFile("streams.json")
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
