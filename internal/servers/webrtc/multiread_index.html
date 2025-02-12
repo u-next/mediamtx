@@ -1066,35 +1066,63 @@ async function fetchLiveStreams() {
 
 async function fetchStreams() {
     try {
+        // Fetch both stream types concurrently
         const [staticStreams, liveStreams] = await Promise.all([
             fetchStaticStreams(),
             fetchLiveStreams()
-        ]);
+        ]).catch(error => {
+            throw new Error(`Failed to fetch streams: ${error.message}`);
+        });
 
-        // Start with live streams
-        const combinedStreams = liveStreams.map(stream => ({
-            ...stream,
-            isStaticOnly: false
-        }));
+        // Validate stream arrays
+        if (!Array.isArray(staticStreams) || !Array.isArray(liveStreams)) {
+            throw new Error('Invalid stream data format');
+        }
 
-        // Create a map of live streams for quick lookup
-        const liveStreamMap = new Map(liveStreams.map(stream => [stream.name, stream]));
+        // Create a map of static streams for quick lookup and initial combined array
+        const staticStreamMap = new Map();
+        const combinedStreams = staticStreams.map(stream => {
+            if (!stream?.name) {
+                console.warn('Invalid static stream format:', stream);
+                return null;
+            }
+            staticStreamMap.set(stream.name, true);
+            return {
+                ...stream,
+                readers: [], // Initialize with empty readers array
+                sourceReady: false,
+                isStaticOnly: true
+            };
+        }).filter(Boolean); // Remove any null entries
 
-        // Add static streams that don't exist in live streams
-        staticStreams.forEach(staticStream => {
-            if (!liveStreamMap.has(staticStream.name)) {
+        // Add live streams that aren't already in static streams
+        liveStreams.forEach(stream => {
+            if (!stream?.name) {
+                console.warn('Invalid live stream format:', stream);
+                return;
+            }
+            if (!staticStreamMap.has(stream.name)) {
                 combinedStreams.push({
-                    name: staticStream.name,
-                    readers: [], // Initialize with empty readers array
-                    sourceReady: false,
-                    isStaticOnly: true
+                    ...stream,
+                    isStaticOnly: false
                 });
+            } else {
+                // Update the existing static stream with live data
+                const index = combinedStreams.findIndex(s => s.name === stream.name);
+                if (index !== -1) {
+                    combinedStreams[index] = {
+                        ...stream,
+                        isStaticOnly: false
+                    };
+                }
             }
         });
 
         updateStreamList(combinedStreams);
     } catch (error) {
         console.error('Failed to fetch streams:', error);
+        // Optionally show user-friendly error message
+        updateStreamList([]); // Update with empty list to avoid stale data
     }
 }
 
