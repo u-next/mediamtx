@@ -1046,6 +1046,12 @@ async function fetchStaticStreams() {
     try {
         const response = await fetch('/streams.json');
         const data = await response.json();
+        
+        // Update server name if available
+        if (data.server_name) {
+            document.querySelector('.sidebar-content h2').textContent = data.server_name;
+        }
+        
         return data.items || [];
     } catch (error) {
         console.error('Failed to fetch static streams:', error);
@@ -1074,7 +1080,7 @@ async function fetchStreams() {
             throw new Error(`Failed to fetch streams: ${error.message}`);
         });
 
-        // Validate stream arrays
+                // Validate stream arrays
         if (!Array.isArray(staticStreams) || !Array.isArray(liveStreams)) {
             throw new Error('Invalid stream data format');
         }
