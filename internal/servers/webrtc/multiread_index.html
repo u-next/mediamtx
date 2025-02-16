@@ -441,7 +441,24 @@ const sidebarToggle = document.getElementById('sidebarToggle');
 sidebarToggle.onclick = () => {
     sidebar.classList.toggle('collapsed');
     sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+
+    // Reset grid resizer styles and recalculate layout
+    resetGridResizers();
+    updateGridLayout();
 };
+
+function resetGridResizers() {
+    const rows = document.querySelectorAll('.grid-row');
+    rows.forEach(row => {
+        row.style.height = ''; // Remove explicit height
+    });
+
+    const cells = document.querySelectorAll('.grid-cell');
+    cells.forEach(cell => {
+        cell.style.width = '';    // Remove explicit width
+        cell.style.flex = '1';     // Restore flex grow
+    });
+}
 </script>
 
 <script>
@@ -939,6 +956,7 @@ function toggleStream(streamPath, checked, allPaths, updateHash = true) {
         }
     }
     
+    resetGridResizers(); // Reset resizers before updating layout
     updateGridLayout();
     streamCount.textContent = activeStreams.size;
     
