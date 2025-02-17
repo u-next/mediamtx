@@ -798,28 +798,59 @@ function createAudioPlayer(streamPath) {
         audio.volume = volume.value;
     };
 
+    let reader = null;
+
     const muteBtn = document.createElement('button');
     muteBtn.className = 'audio-track-mute muted';
     muteBtn.innerHTML = '🔇';
     muteBtn.onclick = () => {
-        audio.muted = !audio.muted;
-        muteBtn.innerHTML = audio.muted ? '🔇' : '🔊';
-        muteBtn.className = 'audio-track-mute' + (audio.muted ? ' muted' : '');
+        const newMutedState = !audio.muted;
+        audio.muted = newMutedState;
+        muteBtn.innerHTML = newMutedState ? '🔇' : '🔊';
+        muteBtn.className = 'audio-track-mute' + (newMutedState ? ' muted' : '');
+
+        // Initialize or cleanup WebRTC for audio-only streams
+        if (streamPath.includes('__aa__')) {
+            if (!newMutedState && !reader) {
+                // Initialize WebRTC when unmuting
+                reader = new MediaMTXWebRTCReader({
+                    url: window.location.origin + '/' + streamPath + '/whep',
+                    onError: (err) => {
+                        muteBtn.title = 'Error: ' + err;
+                    },
+                    onTrack: (evt) => {
+                        audio.srcObject = evt.streams[0];
+                        audio.play().catch(console.error);
+                    },
+                });
+            } else if (newMutedState && reader) {
+                // Cleanup WebRTC when muting
+                if (audio.srcObject) {
+                    audio.srcObject.getTracks().forEach(track => track.stop());
+                }
+                audio.srcObject = null;
+                reader.cleanup();
+                reader = null;
+            }
+        }
     };
 
     controls.appendChild(volume);
     controls.appendChild(muteBtn);
 
-    const reader = new MediaMTXWebRTCReader({
-        url: window.location.origin + '/' + streamPath + '/whep',
-        onError: (err) => {
-            muteBtn.title = 'Error: ' + err;
-        },
-        onTrack: (evt) => {
-            audio.srcObject = evt.streams[0];
-            audio.play().catch(console.error);
-        },
-    });
+    // Initialize WebRTC immediately for non-audio-only streams
+    if (!streamPath.includes('__aa__')) {
+        reader = new MediaMTXWebRTCReader({
+            url: window.location.origin + '/' + streamPath + '/whep',
+            onError: (err) => {
+                muteBtn.title = 'Error: ' + err;
+            },
+            onTrack: (evt) => {
+                audio.srcObject = evt.streams[0];
+                audio.play().catch(console.error);
+            },
+        });
+    }
 
     return { audio, controls, reader };
 }
