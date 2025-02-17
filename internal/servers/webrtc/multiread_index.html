@@ -224,6 +224,12 @@ html, body {
     object-fit: contain;
 }
 
+.video-controls {
+    padding: 5px;
+    background: rgb(20, 20, 20);
+    border-top: 1px solid rgb(40, 40, 40);
+}
+
 .audio-container {
     padding: 5px;
     background: rgb(20, 20, 20);
@@ -411,7 +417,6 @@ html, body {
             <div class="stream-count">Selected: <span id="streamCount">0</span>/12</div>
             <div class="control-buttons">
                 <button class="control-button" onclick="muteAllVideos()">🔇 MUTE ALL</button>
-                <button class="control-button" onclick="unmuteAllVideos()">🔊 UNMUTE ALL</button>
                 <button class="control-button" onclick="clearAllStreams()">🗑️ CLEAR</button>
             </div>
             <div class="system-stats">
@@ -826,13 +831,67 @@ function createPlayerContainer(streamPath, allPaths) {
     videoContainer.className = 'video-container';
     
     const video = document.createElement('video');
-    video.controls = true;
+    video.controls = false;
     video.muted = true;
     video.autoplay = true;
     video.playsInline = true;
     
     videoContainer.appendChild(video);
     container.appendChild(videoContainer);
+
+    // Add video controls container
+    const videoControls = document.createElement('div');
+    videoControls.className = 'video-controls';
+    
+    const trackDiv = document.createElement('div');
+    trackDiv.className = 'audio-track';
+
+    const trackLabel = document.createElement('div');
+    trackLabel.className = 'audio-track-label';
+    trackLabel.textContent = 'track-1';
+
+    const controls = document.createElement('div');
+    controls.className = 'audio-track-controls';
+
+    const volume = document.createElement('input');
+    volume.type = 'range';
+    volume.className = 'audio-track-volume';
+    volume.min = 0;
+    volume.max = 1;
+    volume.step = 0.01;
+    volume.value = 1;
+    volume.onchange = () => {
+        video.volume = volume.value;
+    };
+
+    const muteBtn = document.createElement('button');
+    muteBtn.className = 'audio-track-mute muted';
+    muteBtn.innerHTML = '🔇';
+    muteBtn.onclick = () => {
+        video.muted = !video.muted;
+        muteBtn.innerHTML = video.muted ? '🔇' : '🔊';
+        muteBtn.className = 'audio-track-mute' + (video.muted ? ' muted' : '');
+    };
+
+    const fullscreenBtn = document.createElement('button');
+    fullscreenBtn.className = 'audio-track-mute';
+    fullscreenBtn.innerHTML = '⛶';
+    fullscreenBtn.onclick = () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            videoContainer.requestFullscreen();
+        }
+    };
+
+    controls.appendChild(volume);
+    controls.appendChild(muteBtn);
+    controls.appendChild(fullscreenBtn);
+    
+    trackDiv.appendChild(trackLabel);
+    trackDiv.appendChild(controls);
+    videoControls.appendChild(trackDiv);
+    container.appendChild(videoControls);
     
     // Add additional audio tracks if any
     const audioStreams = getAudioOnlyStreams(allPaths, streamPath);
@@ -1088,19 +1147,28 @@ function createStreamItem(path, paths, hashStreams) {
 
 function muteAllVideos() {
     activeStreams.forEach(stream => {
+        // Mute main video
         const video = stream.container.querySelector('video');
+        const videoMuteBtn = stream.container.querySelector('.video-controls .audio-track-mute');
         if (video) {
             video.muted = true;
+            if (videoMuteBtn) {
+                videoMuteBtn.innerHTML = '🔇';
+                videoMuteBtn.className = 'audio-track-mute muted';
+            }
         }
-    });
-}
 
-function unmuteAllVideos() {
-    activeStreams.forEach(stream => {
-        const video = stream.container.querySelector('video');
-        if (video) {
-            video.muted = false;
-        }
+        // Mute audio tracks
+        const audioTracks = stream.container.querySelectorAll('.audio-container .audio-track');
+        audioTracks.forEach(track => {
+            const audio = track.querySelector('audio');
+            const muteBtn = track.querySelector('.audio-track-mute');
+            if (audio && muteBtn) {
+                audio.muted = true;
+                muteBtn.innerHTML = '🔇';
+                muteBtn.className = 'audio-track-mute muted';
+            }
+        });
     });
 }
 
