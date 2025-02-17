@@ -231,15 +231,15 @@ html, body {
 }
 
 .audio-container {
-    padding: 5px;
+    padding: 3px;
     background: rgb(20, 20, 20);
 }
 
 .audio-track {
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
-    gap: 10px;
+    margin-bottom: 4px;
+    gap: 6px;
 }
 
 .audio-track:last-child {
@@ -248,20 +248,20 @@ html, body {
 
 .audio-track audio {
     flex: 1;
-    height: 30px;
+    height: 24px;
     display: none;
 }
 
 .audio-track-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     flex: 1;
 }
 
 .audio-track-volume {
     flex: 1;
-    height: 4px;
+    height: 3px;
     -webkit-appearance: none;
     background: #444;
     border-radius: 2px;
@@ -271,8 +271,8 @@ html, body {
 
 .audio-track-volume::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: #888;
     cursor: pointer;
@@ -285,15 +285,16 @@ html, body {
 }
 
 .audio-track-mute {
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
     border: none;
     background: none;
     color: #888;
     cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
+    padding: 3px;
+    border-radius: 3px;
     touch-action: manipulation;
+    font-size: 14px;
 }
 
 .audio-track-mute:hover, .audio-track-mute:active {
@@ -305,9 +306,9 @@ html, body {
 }
 
 .audio-track-label {
-    font-size: 12px;
+    font-size: 11px;
     color: #888;
-    width: 100px;
+    width: 80px;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
